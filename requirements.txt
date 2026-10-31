@@ -5,3 +5,4 @@ crewai>=0.28.0
 crewai-tools>=0.1.6
 duckduckgo-search>=5.0.0
 python-multipart>=0.0.9
+crewai[google-genai]
