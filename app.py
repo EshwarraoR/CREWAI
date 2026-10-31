@@ -466,11 +466,12 @@ async def agent9_lead_qualification(payload: QueryRequest):
 
 
 # =====================================================================
-# AGENT 10: Approval Report Flow
+# AGENT 10: Approval Report Flow (Human-in-the-Loop Simulation)
 # =====================================================================
 class ReportState(BaseModel):
-    topic: str = ""
+    topic: str = "General Topic"
     draft: str = ""
+    decision: str = "approved"
 
 class ApprovalReportFlow(Flow[ReportState]):
     @start()
@@ -479,34 +480,89 @@ class ApprovalReportFlow(Flow[ReportState]):
 
     @listen(collect_topic)
     def research_and_write(self, topic):
-        researcher = Agent(role="Analyst", goal="Research {topic}", backstory="Tech analyst.", llm=llm, verbose=False)
-        writer = Agent(role="Writer", goal="Draft structured report", backstory="Tech author.", llm=llm, verbose=False)
-        t1 = Task(description=f"Provide 3 core insights on {topic}", expected_output="Bullet insights.", agent=researcher)
-        t2 = Task(description=f"Draft report on {topic} based on research.", expected_output="Report draft.", agent=writer)
-        self.state.draft = str(Crew(agents=[researcher, writer], tasks=[t1, t2], process=Process.sequential, verbose=False).kickoff())
+        researcher = Agent(
+            role="Analyst",
+            goal="Research {topic}",
+            backstory="Tech analyst.",
+            llm=llm,
+            verbose=False
+        )
+        writer = Agent(
+            role="Writer",
+            goal="Draft a report on {topic}",
+            backstory="Tech author.",
+            llm=llm,
+            verbose=False
+        )
+        t1 = Task(
+            description="Provide 3 core insights on {topic}.",
+            expected_output="Bullet insights.",
+            agent=researcher
+        )
+        t2 = Task(
+            description="Draft a short summary report on {topic} based on the research.",
+            expected_output="Summary report draft.",
+            agent=writer
+        )
+        crew = Crew(
+            agents=[researcher, writer],
+            tasks=[t1, t2],
+            process=Process.sequential,
+            verbose=False
+        )
+        self.state.draft = str(crew.kickoff())
         return self.state.draft
 
-    @listen(research_and_write)
-    def finalize_report(self, draft):
-        return f"=== APPROVED REPORT ===\n\nTopic: {self.state.topic}\n\n{draft}"
+    @router(research_and_write)
+    def check_decision(self):
+        # Safely read decision from state
+        user_decision = getattr(self.state, "decision", "approved")
+        if "approved" in user_decision.lower():
+            return "approved"
+        return "revise"
 
-class Route10Input(BaseModel):
-    input: str  # Format: "Topic: Quantum Computing | Review: approved" OR "Topic: Quantum Computing | Review: Add a section on cost"
+    @listen("approved")
+    def publish_report(self):
+        return f"REPORT PUBLISHED (Approved):\n\n{self.state.draft}"
+
+    @listen("revise")
+    def run_revision_crew(self):
+        editor = Agent(
+            role="Editor",
+            goal="Revise report based on feedback",
+            backstory="Senior editor.",
+            llm=llm,
+            verbose=False
+        )
+        feedback = getattr(self.state, "decision", "Improve readability")
+        task = Task(
+            description=f"Revise this draft based on critique: '{feedback}'.\nOriginal Draft: {self.state.draft}",
+            expected_output="Revised draft.",
+            agent=editor
+        )
+        revised = str(Crew(agents=[editor], tasks=[task], verbose=False).kickoff())
+        return f"REPORT REVISED (Feedback: '{feedback}'):\n\n{revised}"
+
 
 @app.post("/agent10", response_model=QueryResponse)
 async def agent10_approval_report(payload: QueryRequest):
     try:
-        # Check if the user supplied feedback inside the input string
-        user_text = payload.input
-        if "|" in user_text:
-            topic, feedback = [part.strip() for part in user_text.split("|", 1)]
+        raw_text = payload.input.strip()
+        
+        # Support both: "Topic | feedback" AND plain "Topic"
+        if "|" in raw_text:
+            parts = raw_text.split("|", 1)
+            topic = parts[0].strip()
+            decision = parts[1].strip()
         else:
-            topic = user_text
-            feedback = "approved"  # Default assumption if only topic is given
+            topic = raw_text
+            decision = "approved"
 
+        # Initialize Flow with the exact state dictionary to satisfy StateWithId
         flow = ApprovalReportFlow()
         flow.state.topic = topic
-        flow.state.decision = feedback
+        flow.state.decision = decision
+
         res = await flow.kickoff_async()
         return QueryResponse(output=str(res))
     except Exception as e:
