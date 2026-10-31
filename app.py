@@ -490,11 +490,23 @@ class ApprovalReportFlow(Flow[ReportState]):
     def finalize_report(self, draft):
         return f"=== APPROVED REPORT ===\n\nTopic: {self.state.topic}\n\n{draft}"
 
+class Route10Input(BaseModel):
+    input: str  # Format: "Topic: Quantum Computing | Review: approved" OR "Topic: Quantum Computing | Review: Add a section on cost"
+
 @app.post("/agent10", response_model=QueryResponse)
 async def agent10_approval_report(payload: QueryRequest):
     try:
+        # Check if the user supplied feedback inside the input string
+        user_text = payload.input
+        if "|" in user_text:
+            topic, feedback = [part.strip() for part in user_text.split("|", 1)]
+        else:
+            topic = user_text
+            feedback = "approved"  # Default assumption if only topic is given
+
         flow = ApprovalReportFlow()
-        flow.state.topic = payload.input
+        flow.state.topic = topic
+        flow.state.decision = feedback
         res = await flow.kickoff_async()
         return QueryResponse(output=str(res))
     except Exception as e:
