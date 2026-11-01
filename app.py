@@ -577,3 +577,21 @@ def run_agent10(text: str) -> str:
 @app.post("/agent10", response_model=Answer, tags=["CrewAI"])
 def agent10(q: Query):
     return safe(run_agent10, q.input)
+
+
+# ---------------------------------------------------------------------
+# Friendly GET on each route (e.g. opened in a browser). The real endpoints are POST.
+# ---------------------------------------------------------------------
+def _usage(i: int):
+    def handler():
+        return {
+            "route": f"/agent{i}",
+            "message": "This endpoint works with POST, not GET.",
+            "send": {"input": "your text here"},
+            "returns": {"output": "..."},
+        }
+    return handler
+
+
+for _i in range(1, 11):
+    app.add_api_route(f"/agent{_i}", _usage(_i), methods=["GET"], include_in_schema=False)
