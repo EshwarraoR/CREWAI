@@ -27,8 +27,8 @@ Every route is `POST` with JSON `{"input": "..."}` and returns `{"output": "..."
 
 ## Deploy (Render)
 Build: `pip install -r requirements.txt`
-Start: `uvicorn app:app --host 0.0.0.0 --port $PORT`
+Start: `uvicorn app:app --host 0.0.0.0 --port ${PORT:-10000}`
 Env var: `GEMINI_API_KEY`
 
 ## Keeping the free Render instance awake
-Point an uptime monitor (e.g. UptimeRobot, cron-job.org) at `GET /health` every 5 minutes.
+Point an uptime monitor (e.g. UptimeRobot) at `GET /health` every 5 minutes.

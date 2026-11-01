@@ -8,9 +8,6 @@ from pydantic import BaseModel
 
 warnings.filterwarnings("ignore")
 
-# ---------------------------------------------------------------------
-# Config: API key comes from the environment (set GEMINI_API_KEY on Render)
-# ---------------------------------------------------------------------
 api_key = os.getenv("GEMINI_API_KEY") or os.getenv("gemini_api_key") or os.getenv("GOOGLE_API_KEY") or ""
 os.environ["GEMINI_API_KEY"] = api_key
 os.environ.setdefault("GOOGLE_API_KEY", api_key)
@@ -53,9 +50,6 @@ def make_agent(role, goal, backstory, tools=None):
                  llm=llm, verbose=False, allow_delegation=False)
 
 
-# ---------------------------------------------------------------------
-# API schema required by the assignment: {"input": "..."} -> {"output": "..."}
-# ---------------------------------------------------------------------
 class Query(BaseModel):
     input: str
 
@@ -64,7 +58,7 @@ class Answer(BaseModel):
     output: str
 
 
-app = FastAPI(title="CrewAI 10-Project Backend", version="2.0.0")
+app = FastAPI(title="CrewAI 10-Projects")
 
 
 @app.api_route("/", methods=["GET", "HEAD"])
@@ -526,7 +520,7 @@ def agent9(q: Query):
 
 
 # =====================================================================
-# 10. Approval Report Flow (human-in-the-loop simulation)
+# 10. Approval Report Flow
 #     input: "topic"  or  "topic ... Feedback: critique text"
 # =====================================================================
 class ReportState(BaseModel):
@@ -579,9 +573,6 @@ def agent10(q: Query):
     return safe(run_agent10, q.input)
 
 
-# ---------------------------------------------------------------------
-# Friendly GET on each route (e.g. opened in a browser). The real endpoints are POST.
-# ---------------------------------------------------------------------
 def _usage(i: int):
     def handler():
         return {
