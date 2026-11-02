@@ -31,4 +31,4 @@ Start: `uvicorn app:app --host 0.0.0.0 --port ${PORT:-10000}`
 Env var: `GEMINI_API_KEY`
 
 ## Keeping the free Render instance awake
-Point an uptime monitor (e.g. UptimeRobot) at `GET /health` every 5 minutes.
+Point an uptime monitor (e.g. UptimeRobot) at `GET /health` every 10 minutes.
